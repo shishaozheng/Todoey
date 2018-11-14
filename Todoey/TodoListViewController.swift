@@ -10,9 +10,14 @@ import UIKit
 
 class TodoListViewController: UITableViewController {
     var itemArray : [String] = []
+    let defaults = UserDefaults.standard
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // Load storage data
+        if let items = defaults.array(forKey: "TodoListArray") as? [String] {
+            itemArray = items
+        }
     }
 
     //MARK - TableView Data Source
@@ -22,7 +27,7 @@ class TodoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "TodoItemCell", for: indexPath)
-        cell.textLabel?.text = itemArray[indexPath.row]
+        cell.textLabel?.text =  itemArray[indexPath.row]
         
         return cell
     }
@@ -49,6 +54,7 @@ class TodoListViewController: UITableViewController {
                 return
             }
             self.itemArray.append(text)
+            self.defaults.set(self.itemArray, forKey: "TodoListArray")
             self.tableView.reloadData()
         }
         
