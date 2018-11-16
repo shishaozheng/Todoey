@@ -7,11 +7,12 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CategoryTableViewController: UITableViewController {
-    var categoryArray = [Category]()
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    var categoryArray: Results<Category>?
+    
+    let realm = try! Realm()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -27,10 +28,9 @@ class CategoryTableViewController: UITableViewController {
                 return
             }
             
-            let newCategory = Category(context: self.context)
+            let newCategory = Category()
             newCategory.name = text
-            self.categoryArray.append(newCategory)
-            self.saveCategory()
+            self.save(category: newCategory)
         }
         
         alert.addTextField { (alertTextField) in
@@ -45,25 +45,24 @@ class CategoryTableViewController: UITableViewController {
     
     //MARK: - Table View Datasource Methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return categoryArray.count
+        return categoryArray?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
-        cell.textLabel?.text = categoryArray[indexPath.row].name
+        cell.textLabel?.text = categoryArray?[indexPath.row].name ?? "No Category Added Yet"
         return cell
     }
     
     //MARK: - Table View Delegate
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         performSegue(withIdentifier: "goToItems", sender: self)
-//        tableView.deselectRow(at: indexPath, animated: true)
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         let destinationVC = segue.destination as! TodoListViewController
         if let indexPath = tableView.indexPathForSelectedRow {
-            destinationVC.selectedCategory = categoryArray[indexPath.row]
+            destinationVC.selectedCategory = categoryArray?[indexPath.row]
         }
     }
     
@@ -72,30 +71,35 @@ class CategoryTableViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete{
-            context.delete(categoryArray[indexPath.row])
-            categoryArray.remove(at: indexPath.row)
-            saveCategory()
+        if editingStyle == .delete {
+            if let category = categoryArray?[indexPath.row] {
+                do{
+                    try realm.write {
+                        realm.delete(category)
+                    }
+                } catch {
+                    print("Error delete category, \(error)")
+                }
+            }
+            self.tableView.reloadData()
         }
     }
     
     //MARK: - Data Manipulation Methods
-    func saveCategory() {
+    func save(category: Category) {
         do {
-            try context.save()
+            try realm.write {
+                realm.add(category)
+            }
         } catch {
-            print("Error save category \(error)")
+            print("Error save category, \(error)")
         }
         
         tableView.reloadData()
     }
     
-    func loadCategory(with request : NSFetchRequest<Category> = Category.fetchRequest()) {
-        do {
-            categoryArray = try context.fetch(request)
-        } catch {
-            print("Error fetch category \(error)")
-        }
+    func loadCategory() {
+        categoryArray = realm.objects(Category.self)
         tableView.reloadData()
     }
 }
